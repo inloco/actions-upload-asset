@@ -1,0 +1,68 @@
+name: 'Upload Assets'
+description: 'Uploads assets to be consumer in other jobs'
+author: 'Incognia'
+inputs:
+  name:
+    description: 'The name to identify the assets group'
+    required: true
+  path:
+    description: 'A list of files, directories, and wildcard patterns to upload'
+    required: true
+runs:
+  using: composite
+  steps:
+  - name: Generate OIDC session name
+    id: session-name
+    shell: bash
+    run: echo "::set-output name=session-name::${GITHUB_REPOSITORY//\//@}"
+
+  - name: Get AWS credentials
+    uses: inloco/actions-configure-aws-credentials@feature/initial-implementation
+    id: aws-credentials
+    with:
+      aws-region: ${{ env.AWS_REGION }}
+      role-to-assume: arn:aws:iam::779099367007:role/github-actions-storage
+      role-session-name: ${{ steps.session-name.outputs.session-name }}
+
+  - name: Generate asset base key
+    id: assets-base-path
+    shell: bash
+    env:
+      ASSUMED_ROLE_ID: ${{ steps.aws-credentials.outputs.aws-role-id }}
+    run: echo "::set-output name=assets-base-path::assets/${ASSUMED_ROLE_ID}/run:${GITHUB_RUN_ID}/attempt:${GITHUB_RUN_ATTEMPT}"
+
+  - name: Upload assets
+    uses: actions/github-script@v5
+    env:
+      AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
+      AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
+      AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
+      ASSETS_NAME: ${{ inputs.name }}
+      ASSETS_PATH: ${{ inputs.path }}
+      ASSETS_BASE_PATH: ${{ steps.assets-base-path.outputs.assets-base-path }}
+    with:
+      script: |
+        const proc = require('child_process')
+
+        const env = process.env
+        const BUCKET = 'incognia-github-actions-storage'
+
+        function s3ObjectUrl(key) {
+          return `s3://${BUCKET}/${env.ASSETS_BASE_PATH}/${key}`
+        }
+
+        function exec(command) {
+          proc.execSync(command, { shell: '/bin/bash', stdio: 'inherit' })
+        }
+
+        function getTrimmedLines(input) {
+          return input.split('\n').map(s => s.trim()).filter(x => x !== '')
+        }
+
+        core.info('Uploading assets...')
+        core.info('Generating files list...')
+        const patterns = getTrimmedLines(env.ASSETS_PATH)
+        const globber = await glob.create(patterns.join('\n'))
+        const files = await globber.glob()
+        console.log('Compressing and saving assets...')
+        exec(`printf "%s" "${files.join('\n')}" | tar -cvPT - | aws s3 cp - ${s3ObjectUrl(env.ASSETS_NAME)}`)
