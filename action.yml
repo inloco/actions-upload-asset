@@ -19,7 +19,7 @@ runs:
       role-to-assume: arn:aws:iam::779099367007:role/github-actions-storage
 
   - name: Upload assets
-    uses: actions/github-script@v5
+    shell: bash
     env:
       AWS_ACCESS_KEY_ID: ${{ steps.aws-credentials.outputs.aws-access-key-id }}
       AWS_SECRET_ACCESS_KEY: ${{ steps.aws-credentials.outputs.aws-secret-access-key }}
@@ -27,29 +27,21 @@ runs:
       ASSETS_NAME: ${{ inputs.name }}
       ASSETS_PATH: ${{ inputs.path }}
       ASSETS_BASE_PATH: assets/${{ steps.aws-credentials.outputs.subject }}/run:${{ env.GITHUB_RUN_ID }}/attempt:${{ env.GITHUB_RUN_ATTEMPT }}
-    with:
-      script: |
-        const proc = require('child_process')
+      BUCKET: incognia-github-actions-storage
+    run: |
+      function s3ObjectUrl {
+        printf "%s" "s3://${BUCKET}/${ASSETS_BASE_PATH}/$1"
+      }
 
-        const env = process.env
-        const BUCKET = 'incognia-github-actions-storage'
+      function getTrimmedLines {
+        printf "%s" "$1" | xargs -i printf "%s\n" "{}"
+      }
 
-        function s3ObjectUrl(key) {
-          return `s3://${BUCKET}/${env.ASSETS_BASE_PATH}/${key}`
-        }
+      echo "Uploading assets..."
+      echo "Generating files list..."
+      export ALL_PATTERNS=$(getTrimmedLines "$ASSETS_PATH")
+      export GLOBIGNORE=$(echo "$ALL_PATTERNS" | sed -rn '/^!/s/!//p' | paste -sd,)
+      export FILES=$(echo "$ALL_PATTERNS" | grep -vE '^!' | paste -s)
 
-        function exec(command) {
-          proc.execSync(command, { shell: '/bin/bash', stdio: 'inherit' })
-        }
-
-        function getTrimmedLines(input) {
-          return input.split('\n').map(s => s.trim()).filter(x => x !== '')
-        }
-
-        core.info('Uploading assets...')
-        core.info('Generating files list...')
-        const patterns = getTrimmedLines(env.ASSETS_PATH)
-        const globber = await glob.create(patterns.join('\n'))
-        const files = await globber.glob()
-        console.log('Compressing and saving assets...')
-        exec(`printf "%s" "${files.join('\n')}" | tar -cvPT - | aws s3 cp - ${s3ObjectUrl(env.ASSETS_NAME)}`)
+      echo "Compressing and saving assets..."
+      printf "%s\n" ${FILES} | tar -cvT - | aws s3 cp - $(s3ObjectUrl "${ASSETS_NAME}")
