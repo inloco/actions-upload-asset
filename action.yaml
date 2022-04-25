@@ -25,7 +25,7 @@ runs:
         AWS_SESSION_TOKEN: ${{ steps.aws-credentials.outputs.aws-session-token }}
         ASSETS_NAME: ${{ inputs.name }}
         ASSETS_PATH: ${{ inputs.path }}
-        ASSETS_BASE_PATH: assets/${{ steps.aws-credentials.outputs.subject }}/run:${{ env.GITHUB_RUN_ID }}/attempt:${{ env.GITHUB_RUN_ATTEMPT }}
+        ASSETS_BASE_PATH: assets/${{ steps.aws-credentials.outputs.subject }}/run:${{ env.GITHUB_RUN_ID }}
         BUCKET: incognia-github-actions-storage
       run: |
         function s3ObjectUrl {
