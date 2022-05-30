@@ -42,5 +42,8 @@ runs:
         export GLOBIGNORE=$(echo "$ALL_PATTERNS" | sed -rn '/^!/s/!//p' | paste -sd,)
         export FILES=$(echo "$ALL_PATTERNS" | grep -vE '^!' | paste -s)
 
+        echo "Files to be saved:"
+        printf "%s\n" ${FILES}
+
         echo "Compressing and saving assets..."
         printf "%s\n" ${FILES} | tar -cvT - | aws s3 cp - $(s3ObjectUrl "${ASSETS_NAME}")
