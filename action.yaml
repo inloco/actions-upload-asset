@@ -14,11 +14,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Change Working Directory
-      if: inputs.working-directory
-      shell: bash
-      run: cd ${{ inputs.working-directory }}
-
     - name: Get AWS Credentials
       uses: inloco/actions-configure-aws-credentials@HEAD
       id: aws-credentials
@@ -44,6 +39,10 @@ runs:
         function getTrimmedLines {
           printf "%s" "$1" | xargs -i printf "%s\n" "{}"
         }
+
+        if [ -n "${{ inputs.working-directory }}" ]; then
+          cd ${{ inputs.working-directory }}
+        fi
 
         echo "Uploading assets..."
         echo "Generating files list..."
