@@ -16,6 +16,7 @@ runs:
   steps:
     - name: Change Working Directory
       if: inputs.working-directory
+      shell: bash
       run: cd ${{ inputs.working-directory }}
 
     - name: Get AWS Credentials
@@ -24,6 +25,7 @@ runs:
       with:
         aws-region: ${{ env.AWS_REGION }}
         role-to-assume: arn:aws:iam::779099367007:role/github-actions-storage
+
     - name: Upload assets
       shell: bash
       env:
