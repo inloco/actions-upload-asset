@@ -46,4 +46,4 @@ runs:
         printf "%s\n" ${FILES}
 
         echo "Compressing and saving assets..."
-        printf "%s\n" ${FILES} | tar -cvT - | aws s3 cp - $(s3ObjectUrl "${ASSETS_NAME}")
+        printf "%s\n" ${FILES} | tar --verbatim-files-from -cvT - | aws s3 cp - $(s3ObjectUrl "${ASSETS_NAME}")
