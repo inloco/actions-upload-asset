@@ -32,6 +32,8 @@ runs:
         ASSETS_BASE_PATH: assets/${{ steps.aws-credentials.outputs.subject }}/run:${{ env.GITHUB_RUN_ID }}
         BUCKET: incognia-github-actions-storage
       run: |
+        shopt -s globstar
+
         function s3ObjectUrl {
           printf "%s" "s3://${BUCKET}/${ASSETS_BASE_PATH}/$1"
         }
